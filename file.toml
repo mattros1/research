@@ -1,0 +1,5 @@
+
+[[functions]]
+name = "add"
+arguments = [["int", "a"],["int", "b"]]
+return_type = "int"
