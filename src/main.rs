@@ -37,7 +37,7 @@ fn generate_client(function: &IDLFunction, ipc : int) -> String {
             .collect::<Vec<String>>()
             .join(",")
     );
-    if(ipc==0){
+    if ipc==0 {
         let function_body = format!(
             r#"
             {{
@@ -51,7 +51,7 @@ fn generate_client(function: &IDLFunction, ipc : int) -> String {
                 .join(",")
         );
     }
-    else if(ipc==1){
+    else if ipc==1{
         let function_body = format!(
             r#"
             {{
@@ -90,7 +90,7 @@ fn generate_client(function: &IDLFunction, ipc : int) -> String {
 
 fn generate_server(function: &IDLFunction, ipc: int) -> String {
 
-    if(ipc == 0){
+    if ipc == 0 {
         let function_signature = format!(
             "{} {}_s({})",
             function.return_type,
@@ -115,7 +115,7 @@ fn generate_server(function: &IDLFunction, ipc: int) -> String {
                 .join(",")
         );
     }
-    else if(ipc==1){
+    else if ipc==1 {
         let function_signature = format!(
             "{} {}_s(String shm, shm_objid_t objid,size_t objsz, unsigned int nobj)",
             function.return_type,
@@ -137,10 +137,10 @@ fn generate_server(function: &IDLFunction, ipc: int) -> String {
                 .collect::<Vec<String>>()
                 .join("; \n")
             args2 = function.arguments,
-            .iter()
-            .map(|(_arg_type, arg_name)| format!("params.{}", arg_name))
-            .collect::<Vec<String>>()
-            .join(",")
+                .iter()
+                .map(|(_arg_type, arg_name)| format!("params.{}", arg_name))
+                .collect::<Vec<String>>()
+                .join(",")
         );
     }
     format!("{} {}", function_signature, function_body)
