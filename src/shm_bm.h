@@ -15,6 +15,7 @@
 
 typedef void *        shm_bm_t;
 typedef unsigned int  shm_bm_objid_t;
+void * shm;
 
 #define SHM_BM_REFC(shm, nobj) ((unsigned char *)((unsigned char *)shm + nobj))
 #define SHM_BM_DATA(shm, nobj) ((unsigned char *)(SHM_BM_REFC(shm, nobj) + nobj))
@@ -23,55 +24,35 @@ typedef unsigned int  shm_bm_objid_t;
 
 
 static inline shm_bm_t 
-__shm_bm_create(size_t objsz, unsigned int nobj)
+__shm_bm_create(void * mem, size_t memsz, size_t objsz, unsigned int nobj)
 {
-    shm_bm_t shm = malloc(__shm_bm_size(objsz, nobj));
-    if (shm == NULL) return NULL;
-    return shm;
+    //if ((word_t)mem % SHM_BM_ALIGN != 0) return 0;
+	//if (memsz < __shm_bm_size(objsz, nobj)) return 0;
+    shm=mem;
+    return (shm_bm_t)mem;
 }
 
 static inline void
 __shm_bm_init(shm_bm_t shm, size_t objsz, unsigned int nobj)
 {
-    memset(shm, 0, __shm_bm_size(objsz, nobj));
 }
 
 static inline void * 
 __shm_bm_alloc(shm_bm_t shm, shm_bm_objid_t *objid, size_t objsz, unsigned int nobj)
 {
-    unsigned int i;
-    for (i = 0; i < nobj; i++) {
-        if (*(SHM_BM_REFC(shm, nobj) + i) == 0) {
-            cos_faab(SHM_BM_REFC(shm, nobj) + i, 1);
-            *objid = i;
-            return SHM_BM_DATA(shm, nobj) + (i * objsz);
-        }
-    }
-    return NULL; // No free space
+    return shm; // No free space
 }
 
 static inline void *   
 __shm_bm_take(shm_bm_t shm, shm_bm_objid_t objid, size_t objsz, unsigned int nobj)
 {
-    if (objid >= nobj) return NULL;
-    if (*(SHM_BM_REFC(shm, nobj) + objid) == 0) return NULL;
-    
-    cos_faab(SHM_BM_REFC(shm, nobj) + objid, 1);
-    return SHM_BM_DATA(shm, nobj) + (objid * objsz);
+    return shm;
 }
 
 static void
 __shm_bm_ptr_free(void *ptr, size_t objsz, unsigned int nobj)
 {
-    shm_bm_objid_t objid = (shm_bm_objid_t)(((unsigned char *)ptr - SHM_BM_DATA(ptr, nobj)) / objsz);
-    if (objid >= nobj) return;
-
-    if (cos_faab(SHM_BM_REFC(ptr, nobj) + objid, -1) > 1) { 
-        return;
-    }
-
-    // Set the reference count to 0, marking it as free
-    *(SHM_BM_REFC(ptr, nobj) + objid) = 0;
+   free(shm);
 }
 
 static shm_bm_objid_t

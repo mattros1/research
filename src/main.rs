@@ -56,15 +56,16 @@ fn generate_client(function: &IDLFunction, ipc : int) -> String {
             r#"
             {{
                 struct obj_args params=//serialize {args} into testobj
-                size=sizeOf(struct obj_args);
+                size_t objsz=sizeOf(struct obj_args);
                 //ensure proper allignment
-                void * mem = malloc(size);
-                SHM_BM_INTERFACE_CREATE(args, size, 2048);
-                shm=shm_bm_create_args(mem,size);
-                shm_bm_init_args(shm);
+                void * mem = calloc(64,objsz);
+                size_t memsz=64*objSize;
+                SHM_BM_INTERFACE_CREATE(args, size, 64);
+                shm=shm_bm_create_args(mem,memsz,objsz,64);
+                shm_bm_init_args(shm,objsz,nobj);
                 shm_objid_t objid;
                 struct obj_args * obj;
-                obj=shm_bm_alloc_args(shm,&objid);
+                obj=shm_bm_alloc_args(shm,&objid,objsz, 64);
                 *obj= params;
                 return {name}_s(shm,obj);
             }}"#,
