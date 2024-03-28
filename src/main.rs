@@ -68,7 +68,7 @@ fn generate_client(function: &IDLFunction, ipc : int) -> String {
                 shm_bm_init_args(shm,objsz,nobj);
                 shm_objid_t objid;
                 struct obj_args * obj;
-                obj=shm_bm_alloc_args(shm,&objid,objsz, 64);
+                obj=shm_bm_alloc_args(shm,&objid,objsz,64);
                 *obj= params;
                 return {name}_s(shm,obj,objsz,64);
             }}"#,
