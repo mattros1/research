@@ -55,7 +55,10 @@ fn generate_client(function: &IDLFunction, ipc : int) -> String {
         let function_body = format!(
             r#"
             {{
-                struct obj_args params=//serialize {args} into testobj
+                struct obj_args{
+                    {args}
+                };
+                struct obj_args params={{args2}}
                 size_t objsz=sizeOf(struct obj_args);
                 //ensure proper allignment
                 void * mem = calloc(64,objsz);
@@ -71,6 +74,11 @@ fn generate_client(function: &IDLFunction, ipc : int) -> String {
             }}"#,
             name = function.name,
             args = function.arguments
+                .iter()
+                .map(|(_arg_type, arg_name)| format!("{} {}",arg_type, arg_name))
+                .collect::<Vec<String>>()
+                .join("; \n")
+            args2 = function.arguments
                 .iter()
                 .map(|(_arg_type, arg_name)| format!("{}", arg_name))
                 .collect::<Vec<String>>()
@@ -116,11 +124,19 @@ fn generate_server(function: &IDLFunction, ipc: int) -> String {
         let function_body = format!(
             r#"
             {{
-                struct obj_args * params=shm_bm_take_args(shm,obj,objsz,nobj);
-                return {name}({args});
+                struct obj_args{
+                    {args}
+                };
+                struct obj_args * params = shm_bm_take_args(shm,obj,objsz,nobj);
+                return {name}({args2});
             }}"#,
             name = function.name,
-            args = function.arguments,
+            args = function.arguments
+                .iter()
+                .map(|(_arg_type, arg_name)| format!("{} {}",arg_type, arg_name))
+                .collect::<Vec<String>>()
+                .join("; \n")
+            args2 = function.arguments,
             .iter()
             .map(|(_arg_type, arg_name)| format!("params.{}", arg_name))
             .collect::<Vec<String>>()
