@@ -60,10 +60,10 @@ fn generate_client(function: &IDLFunction, ipc : int) -> String {
                 };
                 struct obj_args params={{args2}}
                 size_t objsz=sizeOf(struct obj_args);
-                //ensure proper allignment
+                //TODO: ensure proper allignment
                 void * mem = calloc(64,objsz);
                 size_t memsz=64*objSize;
-                SHM_BM_INTERFACE_CREATE(args, size, 64);
+                SHM_BM_INTERFACE_CREATE(args, objsz, 64);
                 shm=shm_bm_create_args(mem,memsz,objsz,64);
                 shm_bm_init_args(shm,objsz,nobj);
                 shm_objid_t objid;
