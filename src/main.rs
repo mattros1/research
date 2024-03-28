@@ -67,7 +67,7 @@ fn generate_client(function: &IDLFunction, ipc : int) -> String {
                 struct obj_args * obj;
                 obj=shm_bm_alloc_args(shm,&objid,objsz, 64);
                 *obj= params;
-                return {name}_s(shm,obj);
+                return {name}_s(shm,obj,objsz,64);
             }}"#,
             name = function.name,
             args = function.arguments
@@ -109,21 +109,20 @@ fn generate_server(function: &IDLFunction, ipc: int) -> String {
     }
     else if(ipc==1){
         let function_signature = format!(
-            "{} {}_s(String shm, shm_objid_t obj)",
+            "{} {}_s(String shm, shm_objid_t objid,size_t objsz, unsigned int nobj)",
             function.return_type,
             function.name
         );
         let function_body = format!(
             r#"
             {{
-                arguments=shm_bm_take_args(shm,obj);
-                //deserialize obj into struct
+                struct obj_args * params=shm_bm_take_args(shm,obj,objsz,nobj);
                 return {name}({args});
             }}"#,
             name = function.name,
             args = function.arguments,
             .iter()
-            .map(|(_arg_type, arg_name)| format!("struct.{}", arg_name))
+            .map(|(_arg_type, arg_name)| format!("params.{}", arg_name))
             .collect::<Vec<String>>()
             .join(",")
         );
