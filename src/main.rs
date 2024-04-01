@@ -1,15 +1,21 @@
 use serde::Deserialize;
+use std::fs;
 use std::fs::File;
 use std::io::{self, Read};
 
-
-size_t Limit = 1;
+static LIMIT: u32 = 1;
 #[derive(Debug, Deserialize)]
 struct IDLFunction {
     name: String,
     arguments: Vec<(String, String)>,
     return_type: String,
 }
+// struct argument {
+//     enum: ,
+//     type: ,
+//     size: size_t,
+//     ownership: ,
+// }
 
 #[derive(Debug, Deserialize)]
 struct SystemConfig {
@@ -22,129 +28,158 @@ fn read_toml(file_path: &str) -> io::Result<String> {
     file.read_to_string(&mut content)?;
     Ok(content)
 }
-fn get_size(args: <Vec<String>>){
-    return Limit +1;
+fn get_size(_function: &IDLFunction) -> u32 {
+    LIMIT + 1
 }
 
-fn generate_client(function: &IDLFunction, ipc : int) -> String {
-    let function_signature = format!(
-        "{} {}_c({})",
+// fn generate_client(function: &IDLFunction) -> String {
+//     if get_size(&function) < LIMIT {
+//         return format!(
+//             "{} {}",
+//             client_signature(&function),
+//             client_body_reg(&function)
+//         );
+//     } else {
+//         return format!(
+//             "{} {}",
+//             client_signature(&function),
+//             client_body_shm(&function)
+//         );
+//     }
+// }
+// fn generate_server(function: &IDLFunction) -> String {
+//     if get_size(&function) < LIMIT {
+//         return format!(
+//             "{} {}",
+//             server_signature_reg(&function),
+//             server_body_reg(&function)
+//         );
+//     } else {
+//         return format!(
+//             "{} {}",
+//             server_signature_shm(&function),
+//             server_body_shm(&function),
+//         );
+//     }
+// }
+fn interface_create(function: &IDLFunction) -> String {
+    format!(
+        r#"int nobjs = 16;
+struct {name}_args{{
+    {fields}
+}};
+size_t objsz = sizeof(struct {name}_args);
+SHM_BM_INTERFACE_CREATE({name}obj, objsz, nobjs);
+
+"#,
+        name = function.name,
+        fields = function
+            .arguments
+            .iter()
+            .map(|(arg_type, arg_name)| format!("{} {};", arg_type, arg_name))
+            .collect::<Vec<String>>()
+            .join("\n\t"),
+    )
+}
+fn client_signature(function: &IDLFunction) -> String {
+    format!(
+        "{ret} {name}_c({args})",
+        ret = function.return_type,
+        name = function.name,
+        args = function
+            .arguments
+            .iter()
+            .map(|(arg_type, arg_name)| format!("{} {}", arg_type, arg_name))
+            .collect::<Vec<String>>()
+            .join(","),
+    )
+}
+fn client_body_reg(function: &IDLFunction) -> String {
+    format!(
+        r#"{{
+    return {name}_s({args});
+}}"#,
+        name = function.name,
+        args = function
+            .arguments
+            .iter()
+            .map(|(_arg_type, arg_name)| format!("{}", arg_name))
+            .collect::<Vec<String>>()
+            .join(",")
+    )
+}
+fn client_body_shm(function: &IDLFunction) -> String {
+    format!(
+        r#"{{
+    struct {name}_args params=(struct {name}_args){{{args}}};
+    //TODO: ensure proper allignment
+    void * mem = calloc(nobjs,objsz);
+    size_t memsz = nobjs*objsz;
+    void * shm = shm_bm_create_{name}obj(mem,memsz);
+    shm_bm_init_{name}obj(shm);
+    shm_bm_objid_t objid;
+    void * obj;
+    obj = shm_bm_alloc_{name}obj(shm,&objid);
+    *(struct {name}_args*)obj = params;
+    return {name}_s(shm,objid);
+}}"#,
+        name = function.name,
+        args = function
+            .arguments
+            .iter()
+            .map(|(_arg_type, arg_name)| format!("{}", arg_name))
+            .collect::<Vec<String>>()
+            .join(",")
+    )
+}
+fn server_signature_reg(function: &IDLFunction) -> String {
+    format!(
+        "{} {}_s({})",
         function.return_type,
         function.name,
-        function.arguments
+        function
+            .arguments
             .iter()
             .map(|(arg_type, arg_name)| format!("{} {}", arg_type, arg_name))
             .collect::<Vec<String>>()
             .join(",")
-    );
-    if ipc==0 {
-        let function_body = format!(
-            r#"
-            {{
-                return {name}_s({args});
-            }}"#,
-            name = function.name,
-            args = function.arguments
-                .iter()
-                .map(|(_arg_type, arg_name)| format!("{}", arg_name))
-                .collect::<Vec<String>>()
-                .join(",")
-        );
-    }
-    else if ipc==1{
-        let function_body = format!(
-            r#"
-            {{
-                struct obj_args{
-                    {args}
-                };
-                struct obj_args params={{args2}}
-                size_t objsz=sizeOf(struct obj_args);
-                //TODO: ensure proper allignment
-                void * mem = calloc(64,objsz);
-                size_t memsz=64*objSize;
-                SHM_BM_INTERFACE_CREATE(args, objsz, 64);
-                shm=shm_bm_create_args(mem,memsz,objsz,64);
-                shm_bm_init_args(shm,objsz,nobj);
-                shm_objid_t objid;
-                struct obj_args * obj;
-                obj=shm_bm_alloc_args(shm,&objid,objsz,64);
-                *obj= params;
-                return {name}_s(shm,obj,objsz,64);
-            }}"#,
-            name = function.name,
-            args = function.arguments
-                .iter()
-                .map(|(_arg_type, arg_name)| format!("{} {}",arg_type, arg_name))
-                .collect::<Vec<String>>()
-                .join("; \n")
-            args2 = function.arguments
-                .iter()
-                .map(|(_arg_type, arg_name)| format!("{}", arg_name))
-                .collect::<Vec<String>>()
-                .join(",")
-    }
-
-    format!("{} {}", function_signature, function_body)
+    )
 }
-
-fn generate_server(function: &IDLFunction, ipc: int) -> String {
-
-    if ipc == 0 {
-        let function_signature = format!(
-            "{} {}_s({})",
-            function.return_type,
-            function.name,
-            function.arguments
-                .iter()
-                .map(|(arg_type, arg_name)| format!("{} {}", arg_type, arg_name))
-                .collect::<Vec<String>>()
-                .join(",")
-        );
-
-        let function_body = format!(
-            r#"
-            {{
-                return {name}({args});
-            }}"#,
-            name = function.name,
-            args = function.arguments
-                .iter()
-                .map(|(_arg_type, arg_name)| format!("{}", arg_name))
-                .collect::<Vec<String>>()
-                .join(",")
-        );
-    }
-    else if ipc==1 {
-        let function_signature = format!(
-            "{} {}_s(String shm, shm_objid_t objid,size_t objsz, unsigned int nobj)",
-            function.return_type,
-            function.name
-        );
-        let function_body = format!(
-            r#"
-            {{
-                struct obj_args{
-                    {args}
-                };
-                struct obj_args * params = shm_bm_take_args(shm,obj,objsz,nobj);
-                return {name}({args2});
-            }}"#,
-            name = function.name,
-            args = function.arguments
-                .iter()
-                .map(|(_arg_type, arg_name)| format!("{} {}",arg_type, arg_name))
-                .collect::<Vec<String>>()
-                .join("; \n")
-            args2 = function.arguments,
-                .iter()
-                .map(|(_arg_type, arg_name)| format!("params.{}", arg_name))
-                .collect::<Vec<String>>()
-                .join(",")
-        );
-    }
-    format!("{} {}", function_signature, function_body)
-
+fn server_signature_shm(function: &IDLFunction) -> String {
+    format!(
+        "{} {}_s(void * shm, shm_bm_objid_t objid)",
+        function.return_type, function.name
+    )
+}
+fn server_body_reg(function: &IDLFunction) -> String {
+    format!(
+        r#"{{
+    return {name}({args});
+}}"#,
+        name = function.name,
+        args = function
+            .arguments
+            .iter()
+            .map(|(_arg_type, arg_name)| format!("{}", arg_name))
+            .collect::<Vec<String>>()
+            .join(",")
+    )
+}
+fn server_body_shm(function: &IDLFunction) -> String {
+    format!(
+        r#"{{
+    struct {name}_args params = *(struct {name}_args*)shm_bm_take_{name}obj(shm,objid);
+    shm_bm_free_{name}obj(shm);
+    return {name}({args});
+}}"#,
+        name = function.name,
+        args = function
+            .arguments
+            .iter()
+            .map(|(_arg_type, arg_name)| format!("params.{}", arg_name))
+            .collect::<Vec<String>>()
+            .join(","),
+    )
 }
 
 fn main() {
@@ -154,20 +189,34 @@ fn main() {
 
     let mut client_stub = String::new();
     let mut server_stub = String::new();
-
+    let mut total = String::new();
+    total += &format!("#include \"shm_bm.h\"\n#include \"header.h\" \n");
     // Moved logic from generate_stubs into main
     for function in config.functions {
-        //size=getSize(function.arguments);
-        if(size>Limit){
-            client_stub += &generate_client(&function,1);
-            server_stub += &generate_server(&function,1);
-        }
-        else{
-            client_stub += &generate_client(&function,0);
-            server_stub += &generate_server(&function,0);
+        if get_size(&function) < LIMIT {
+            server_stub += &server_signature_reg(&function);
+            server_stub += &server_body_reg(&function);
+            client_stub += &client_signature(&function);
+            client_stub += &client_body_reg(&function);
+        } else {
+            total += &interface_create(&function);
+            server_stub += &server_signature_shm(&function);
+            server_stub += &server_body_shm(&function);
+            client_stub += &client_signature(&function);
+            client_stub += &client_body_shm(&function);
         }
 
+        total += &server_stub;
+        total += "\n";
+        total += &client_stub;
+    }
+    match fs::write("stubs.h", &total) {
+        Ok(_) => println!("C code written to file: {}", "/src/stubs.h"),
+        Err(error) => println!("Error writing to file: {}", error),
     }
 
-    println!("Client Stub:\n{}\nServer Stub:\n{}\n", client_stub, server_stub);
+    println!(
+        "Client Stub:\n{}\nServer Stub:\n{}\n",
+        client_stub, server_stub
+    );
 }
