@@ -1,0 +1,10 @@
+# Project Overview
+For this project I was tasked with creating the stub code for rpc calls within the GWU composite operating system. My task was to read in a toml file with interface specifications from which I would generate code to handle IPC for passing parameters and return values. I had to account for multiple IPC methods determined by the size of the data beign passed. I was only able to implement the simple word sized arguments and shared memory versions of the template but hope to soon include vector registers. 
+## Languages
+For reading the toml file I worked in RUST and also within Rust generated the stub codes which were written in C. I had to familiarize myself with the basics of Rust as well as the orginization of TOML files. Cargo was incredibly useful and allowed me to easily compile and run my code. I also had to learn more about the ways in which the linker works with C files and how to properly compile and run my generated files.
+## SHM_BM Library
+For shared memory IPC I was using the SHM_BM library. This library does not create the shared memory region, it only creates an interface to manage it and allows things like reference counting. For my project I was working in a local version that used a simple malloc call for memory. The plan is to eventually implement into composite where I would have to find another shared memory library to create and free the shared memory region.
+## Implementation
+Currently my implementation breaks apart the template generation into many different functions with very specific purposes. I would like to condense these functions in the future as there does not need to be this much seperation. I have also not yet implemented the functionality for determinin gthe size of the arguments/return values. It should be simple and I hope to implement it soon. Also, as mentioned I have not yet worked with vector registers or implementing into composite which I hope to get to eventually.
+## Conclusion
+Overall I am not very satisfied with the progress I have made but have learned a lot and hope to continue working on this project over the summer.
